@@ -41,21 +41,21 @@ Frontend (React 19 + Vite + Tailwind + D3.js)     Backend (Express 5 + Node.js)
   │  • Similarity Finder               │           │  • similarity-finder                 │
   │  • Critical Node / Hub Detection   │           │  • critical-node                     │
   │  • Stale Document Detector         │           │  • stale-document-detector           │
-  └────────────────────────────────────┘           └──────────┬─────────────────────────┘
+  └────────────────────────────────────┘           └──────────┬───────────────────────────┘
                                                               │
                                                    ┌──────────┴─────────────────────────┐
-                                                   │  MongoDB Atlas                      │
-                                                   │  • documents      (Approach A)      │
-                                                   │  • graph_nodes    (Approach B)      │
-                                                   │  • graph_edges    (Approach B)      │
-                                                   │  • Atlas Search indexes              │
-                                                   │  • Vector Search indexes             │
+                                                   │  MongoDB Atlas                     │
+                                                   │  • documents      (Approach A)     │
+                                                   │  • graph_nodes    (Approach B)     │
+                                                   │  • graph_edges    (Approach B)     │
+                                                   │  • Atlas Search indexes            │
+                                                   │  • Vector Search indexes           │
                                                    ├────────────────────────────────────┤
-                                                   │  Embedding Providers                │
-                                                   │  • VoyageAI (ai.mongodb.com proxy)  │
-                                                   │    └ voyage-4-lite (1024 dims)      │
-                                                   │  • OpenAI                            │
-                                                   │    └ text-embedding-ada-002 (1536d) │
+                                                   │  Embedding Providers               │
+                                                   │  • VoyageAI (ai.mongodb.com proxy) │
+                                                   │    └ voyage-4-lite (1024 dims)     │
+                                                   │  • OpenAI                          │
+                                                   │    └ text-embedding-ada-002 (1536d)│
                                                    └────────────────────────────────────┘
 ```
 
