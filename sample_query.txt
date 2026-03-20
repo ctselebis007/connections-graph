@@ -1,0 +1,7 @@
+MATCH path = (source:Node)-[rels: CONNECTED*1.5]->(target:Node)
+WHERE
+30080' IN source. channel_ids
+AND "9'
+IN source. language_ids
+RETURN path, source. ExternaLID AS source_id, source. channel_ids AS source_channels, source. language_ids AS source_languages, source. internal_ids AS source_internal_ids, length (path) AS depth
+LIMIT 100;
