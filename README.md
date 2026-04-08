@@ -12,7 +12,7 @@ npm run install:all
 npm run dev:full
 ```
 
-Open http://localhost:5173 → **Setup** page → enter MongoDB URI, DB name, embedding provider + API key → click buttons in order.
+Open http://localhost:5175 → **Setup** page → enter MongoDB URI, DB name, embedding provider + API key → click buttons in order.
 
 ## Architecture
 
@@ -166,7 +166,7 @@ Nodes are color-coded by collection. Edges are styled by link type (solid = Cros
 │   │   └── components/
 │   │       ├── setup/              # ConnectionForm, ActionButton, StatusDashboard
 │   │       └── search/             # GraphVisualization (D3.js), ResultsTable, NodeDetail
-│   └── vite.config.js              # Proxy /api → localhost:3001
+│   └── vite.config.js              # Proxy /api → localhost:3005
 └── Connections_sample.json         # Original Neo4j export (reference)
 ```
 

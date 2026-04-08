@@ -5,7 +5,7 @@ import searchRoutes from "./routes/search.js";
 import agentRoutes from "./routes/agents.js";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
