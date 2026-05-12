@@ -1,6 +1,6 @@
 /**
  * Generates a rich, randomized but internally-consistent dataset
- * for the Connections Graph application.
+ * for the Graph Connections application.
  *
  * All nodes get full titles, metadata, and meaningful connections.
  */
@@ -83,6 +83,179 @@ const ORGANIZATIONS = [
 ];
 
 const LINK_TYPES = ["Cross Reference", "Image Link", "Resource Link"];
+
+/* ------------------------------------------------------------------ */
+/*  Taxonomy tree definition                                           */
+/* ------------------------------------------------------------------ */
+
+const TAXONOMY_TREE = [
+  {
+    _id: "T_ROOT", label: "Knowledge Base", type: "category", children: [
+      {
+        _id: "T_AUDIT", label: "Audit & Assurance", type: "category",
+        properties: { jurisdiction: "Global", applicability: "All audit engagements" },
+        children: [
+          {
+            _id: "T_REVREC", label: "Revenue Recognition", type: "topic",
+            properties: { jurisdiction: "Global", effectiveDateStart: "2018-01-01" },
+            children: [
+              { _id: "T_IFRS15", label: "IFRS 15", type: "standard", properties: { jurisdiction: "International", effectiveDateStart: "2018-01-01", issuingBody: "IASB" } },
+              { _id: "T_ASC606", label: "ASC 606", type: "standard", properties: { jurisdiction: "United States", effectiveDateStart: "2018-01-01", issuingBody: "FASB" } },
+            ],
+          },
+          {
+            _id: "T_LEASE", label: "Lease Accounting", type: "topic",
+            properties: { jurisdiction: "Global", effectiveDateStart: "2019-01-01" },
+            children: [
+              { _id: "T_ASC842", label: "ASC 842", type: "standard", properties: { jurisdiction: "United States", effectiveDateStart: "2019-01-01", issuingBody: "FASB" } },
+              { _id: "T_IFRS16", label: "IFRS 16", type: "standard", properties: { jurisdiction: "International", effectiveDateStart: "2019-01-01", issuingBody: "IASB" } },
+            ],
+          },
+          {
+            _id: "T_FAIRVAL", label: "Fair Value", type: "topic",
+            properties: { jurisdiction: "Global" },
+            children: [
+              { _id: "T_ISA540", label: "ISA 540", type: "standard", properties: { jurisdiction: "International", issuingBody: "IAASB" } },
+            ],
+          },
+          { _id: "T_INTCTRL", label: "Internal Controls", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_FININSTR", label: "Financial Instruments", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_IMPAIRMENT", label: "Impairment", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_CONSOLIDATION", label: "Consolidation", type: "topic", properties: { jurisdiction: "Global" } },
+        ],
+      },
+      {
+        _id: "T_TAX", label: "Tax", type: "category",
+        properties: { jurisdiction: "Global", applicability: "Tax engagements" },
+        children: [
+          { _id: "T_TRANSPRICE", label: "Transfer Pricing", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_INTTAX", label: "International Tax", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_TAXREPORT", label: "Tax Reporting", type: "topic", properties: { jurisdiction: "Global" } },
+        ],
+      },
+      {
+        _id: "T_ADVISORY", label: "Advisory", type: "category",
+        properties: { jurisdiction: "Global", applicability: "Advisory engagements" },
+        children: [
+          { _id: "T_RISKMGMT", label: "Risk Management", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_CYBER", label: "Cybersecurity", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_ESG", label: "ESG & Sustainability", type: "topic", properties: { jurisdiction: "Global", effectiveDateStart: "2024-01-01" } },
+          { _id: "T_PRIVACY", label: "Data Privacy", type: "topic", properties: { jurisdiction: "EU", applicability: "GDPR-scope entities" } },
+          { _id: "T_AML", label: "Anti-Money Laundering", type: "topic", properties: { jurisdiction: "Global" } },
+        ],
+      },
+      {
+        _id: "T_STANDARDS", label: "Standards & Regulation", type: "category",
+        properties: { jurisdiction: "Global" },
+        children: [
+          { _id: "T_IFRS", label: "IFRS Standards", type: "topic", properties: { jurisdiction: "International", issuingBody: "IASB" } },
+          { _id: "T_USGAAP", label: "US GAAP Standards", type: "topic", properties: { jurisdiction: "United States", issuingBody: "FASB" } },
+          { _id: "T_ISA", label: "ISA Standards", type: "topic", properties: { jurisdiction: "International", issuingBody: "IAASB" } },
+        ],
+      },
+      {
+        _id: "T_TECH", label: "Technology", type: "category",
+        properties: { jurisdiction: "Global" },
+        children: [
+          { _id: "T_DATAANALYTICS", label: "Data Analytics", type: "topic", properties: { jurisdiction: "Global" } },
+          { _id: "T_AIAUTO", label: "AI & Automation", type: "topic", properties: { jurisdiction: "Global" } },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * Ontology relationships beyond parent-child.
+ * Each entry: [sourceID, targetID, relationshipType]
+ */
+const ONTOLOGY_RELATIONSHIPS = [
+  // is-a: IFRS 15 is a type of IFRS Standard
+  ["T_IFRS15", "T_IFRS", "is-a"],
+  ["T_IFRS16", "T_IFRS", "is-a"],
+  ["T_ASC606", "T_USGAAP", "is-a"],
+  ["T_ASC842", "T_USGAAP", "is-a"],
+  ["T_ISA540", "T_ISA", "is-a"],
+
+  // part-of: Revenue Recognition is part of Audit
+  ["T_REVREC", "T_AUDIT", "part-of"],
+  ["T_LEASE", "T_AUDIT", "part-of"],
+  ["T_FAIRVAL", "T_AUDIT", "part-of"],
+  ["T_INTCTRL", "T_AUDIT", "part-of"],
+
+  // applies-to: ISA 540 applies to Fair Value
+  ["T_ISA540", "T_FAIRVAL", "applies-to"],
+  ["T_INTCTRL", "T_RISKMGMT", "applies-to"],
+  ["T_CYBER", "T_PRIVACY", "applies-to"],
+  ["T_ESG", "T_RISKMGMT", "applies-to"],
+  ["T_DATAANALYTICS", "T_AUDIT", "applies-to"],
+  ["T_AIAUTO", "T_DATAANALYTICS", "applies-to"],
+
+  // supersedes: ASC 606 supersedes older revenue standards (conceptual)
+  ["T_ASC606", "T_REVREC", "supersedes"],
+  ["T_IFRS15", "T_REVREC", "supersedes"],
+  ["T_ASC842", "T_LEASE", "supersedes"],
+  ["T_IFRS16", "T_LEASE", "supersedes"],
+
+  // governed-by: Transfer Pricing governed by International Tax
+  ["T_TRANSPRICE", "T_INTTAX", "governed-by"],
+  ["T_AML", "T_RISKMGMT", "governed-by"],
+  ["T_PRIVACY", "T_ADVISORY", "governed-by"],
+  ["T_TAXREPORT", "T_TAX", "governed-by"],
+];
+
+/**
+ * Map from metadata focus/searchtopic values to taxonomy concept IDs.
+ * Each document gets tagged based on its metadata.
+ */
+const FOCUS_TO_CONCEPTS = {
+  "IFRS": ["T_IFRS", "T_AUDIT"],
+  "US GAAP": ["T_USGAAP", "T_AUDIT"],
+  "Auditing": ["T_AUDIT"],
+  "Revenue Recognition": ["T_REVREC"],
+  "Lease Accounting": ["T_LEASE"],
+  "Financial Instruments": ["T_FININSTR"],
+  "Consolidation": ["T_CONSOLIDATION"],
+  "Impairment": ["T_IMPAIRMENT"],
+  "Fair Value": ["T_FAIRVAL"],
+  "Tax Reporting": ["T_TAXREPORT", "T_TAX"],
+  "Transfer Pricing": ["T_TRANSPRICE", "T_TAX"],
+  "Cybersecurity": ["T_CYBER", "T_ADVISORY"],
+  "Data Privacy": ["T_PRIVACY", "T_ADVISORY"],
+  "ESG Reporting": ["T_ESG"],
+  "Sustainability": ["T_ESG"],
+  "Anti-Money Laundering": ["T_AML", "T_ADVISORY"],
+  "Internal Audit": ["T_INTCTRL", "T_AUDIT"],
+  "Risk Management": ["T_RISKMGMT", "T_ADVISORY"],
+};
+
+const TOPIC_TO_CONCEPTS = {
+  "IFRS 15 Revenue": ["T_IFRS15", "T_REVREC"],
+  "IFRS 16 Leases": ["T_IFRS16", "T_LEASE"],
+  "IFRS 9 Financial Instruments": ["T_FININSTR", "T_IFRS"],
+  "IFRS 3 Business Combinations": ["T_IFRS"],
+  "IFRS 17 Insurance": ["T_IFRS"],
+  "IAS 36 Impairment": ["T_IMPAIRMENT", "T_IFRS"],
+  "IAS 19 Employee Benefits": ["T_IFRS"],
+  "IAS 21 Foreign Currency": ["T_IFRS"],
+  "IAS 12 Income Taxes": ["T_TAXREPORT", "T_IFRS"],
+  "ASC 606 Revenue": ["T_ASC606", "T_REVREC"],
+  "ASC 842 Leases": ["T_ASC842", "T_LEASE"],
+  "ASC 326 Credit Losses": ["T_USGAAP"],
+  "SOX Compliance": ["T_INTCTRL"],
+  "PCAOB Standards": ["T_ISA", "T_AUDIT"],
+  "ISA 540 Estimates": ["T_ISA540", "T_FAIRVAL"],
+  "ISA 315 Risk Assessment": ["T_ISA", "T_RISKMGMT"],
+  "ISA 330 Audit Responses": ["T_ISA", "T_AUDIT"],
+  "ISQM 1 Quality": ["T_ISA", "T_AUDIT"],
+  "ESG Reporting": ["T_ESG"],
+  "Sustainability": ["T_ESG"],
+  "Climate Risk": ["T_ESG", "T_RISKMGMT"],
+  "Cybersecurity Audit": ["T_CYBER", "T_AUDIT"],
+  "Transfer Pricing": ["T_TRANSPRICE"],
+  "Tax Reform": ["T_TAX"],
+  "Digital Transformation": ["T_TECH", "T_DATAANALYTICS"],
+};
 
 const DOC_TITLE_PREFIXES = [
   "Guide to", "Overview of", "Implementing", "Understanding",
@@ -204,6 +377,15 @@ function generateNode(id, collection) {
   const pubDate = randomDate();
   const verDate = randomDateTimeFull();
 
+  // Derive conceptIDs from focus area and search topic
+  const conceptSet = new Set();
+  const focusConcepts = FOCUS_TO_CONCEPTS[focus] || [];
+  const topicConcepts = TOPIC_TO_CONCEPTS[topic] || [];
+  for (const c of focusConcepts) conceptSet.add(c);
+  for (const c of topicConcepts) conceptSet.add(c);
+  // Ensure at least one concept
+  if (conceptSet.size === 0) conceptSet.add("T_ROOT");
+
   return {
     _id: id,
     documentTitle: title,
@@ -212,6 +394,7 @@ function generateNode(id, collection) {
     channelIDs: channels.map((c) => c.id),
     languageIDs: languages.map((l) => l.id),
     nodePath: `${collection.id}/${id}`,
+    conceptIDs: [...conceptSet],
     metadata: {
       access: Math.random() > 0.2 ? "Yes" : "No",
       contentcategory: category,
@@ -370,5 +553,64 @@ export function generateDataset(nodeCount = 120) {
   // Approach B: nodes stay as-is, edges are separate
   const graphNodes = nodes.map(({ ...n }) => n);
 
-  return { documents, graphNodes, edges };
+  // Generate taxonomy
+  const { taxonomyNodes, taxonomyEdges } = generateTaxonomy();
+
+  return { documents, graphNodes, edges, taxonomyNodes, taxonomyEdges };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Taxonomy generation                                                */
+/* ------------------------------------------------------------------ */
+
+function generateTaxonomy() {
+  const taxonomyNodes = [];
+  const taxonomyEdges = [];
+
+  function walk(items, parentId, level, parentPath) {
+    for (const item of items) {
+      const path = [...parentPath, item._id];
+      taxonomyNodes.push({
+        _id: item._id,
+        label: item.label,
+        description: "",
+        type: item.type || "concept",
+        level,
+        path,
+        properties: item.properties || {},
+        metadata: {
+          source: "seed",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      if (parentId) {
+        taxonomyEdges.push({
+          sourceID: parentId,
+          targetID: item._id,
+          relationshipType: "parent-child",
+          metadata: { createdAt: new Date() },
+        });
+      }
+
+      if (item.children) {
+        walk(item.children, item._id, level + 1, path);
+      }
+    }
+  }
+
+  walk(TAXONOMY_TREE, null, 0, []);
+
+  // Add ontology relationships (non-hierarchical)
+  for (const [sourceID, targetID, relationshipType] of ONTOLOGY_RELATIONSHIPS) {
+    taxonomyEdges.push({
+      sourceID,
+      targetID,
+      relationshipType,
+      metadata: { createdAt: new Date() },
+    });
+  }
+
+  return { taxonomyNodes, taxonomyEdges };
 }

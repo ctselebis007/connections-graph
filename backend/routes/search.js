@@ -16,8 +16,8 @@ const router = Router();
 /* POST /api/search/lexical */
 router.post("/lexical", async (req, res) => {
   try {
-    const { results, pipeline } = await lexicalSearch(req.body);
-    res.json({ results, pipeline });
+    const { results, pipeline, expandedTerms } = await lexicalSearch(req.body);
+    res.json({ results, pipeline, expandedTerms });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -26,8 +26,8 @@ router.post("/lexical", async (req, res) => {
 /* POST /api/search/vector */
 router.post("/vector", async (req, res) => {
   try {
-    const { results, pipeline } = await vectorSearch(req.body);
-    res.json({ results, pipeline });
+    const { results, pipeline, expandedTerms } = await vectorSearch(req.body);
+    res.json({ results, pipeline, expandedTerms });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -36,8 +36,8 @@ router.post("/vector", async (req, res) => {
 /* POST /api/search/hybrid */
 router.post("/hybrid", async (req, res) => {
   try {
-    const { results, pipeline } = await hybridSearch(req.body);
-    res.json({ results, pipeline });
+    const { results, pipeline, expandedTerms } = await hybridSearch(req.body);
+    res.json({ results, pipeline, expandedTerms });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -46,8 +46,8 @@ router.post("/hybrid", async (req, res) => {
 /* POST /api/search/hybrid-graph */
 router.post("/hybrid-graph", async (req, res) => {
   try {
-    const { results, pipeline } = await hybridGraphSearch(req.body);
-    res.json({ results, pipeline });
+    const { results, pipeline, expandedTerms } = await hybridGraphSearch(req.body);
+    res.json({ results, pipeline, expandedTerms });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

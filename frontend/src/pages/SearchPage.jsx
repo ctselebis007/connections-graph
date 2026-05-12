@@ -5,10 +5,30 @@ import ResultsTable from "../components/search/ResultsTable.jsx";
 import NodeDetail from "../components/search/NodeDetail.jsx";
 
 const SEARCH_TYPES = [
-  { value: "lexical", label: "Lexical" },
-  { value: "vector", label: "Vector" },
-  { value: "hybrid", label: "Hybrid ($rankFusion)" },
-  { value: "hybrid-graph", label: "Hybrid Graph" },
+  {
+    value: "lexical",
+    label: "Lexical",
+    method: "Atlas Search $search with fuzzy matching on text fields.",
+    advantages: "Fast keyword matching, typo-tolerant, no embeddings needed. Ideal for exact term lookups and known document titles.",
+  },
+  {
+    value: "vector",
+    label: "Vector",
+    method: "Embeds the query via AI, then runs Atlas $vectorSearch against document embeddings.",
+    advantages: "Understands meaning, not just keywords. Finds semantically similar documents even with different wording.",
+  },
+  {
+    value: "hybrid",
+    label: "Hybrid ($rankFusion)",
+    method: "Combines vector search + lexical search using MongoDB's native $rankFusion with 50/50 weighting.",
+    advantages: "Best of both worlds — captures exact keyword hits and semantic matches. Reduces blind spots of either method alone.",
+  },
+  {
+    value: "hybrid-graph",
+    label: "Hybrid Graph",
+    method: "Vector search seeds (top 5) → $facet → $graphLookup (depth 5) to traverse document connections, then deduplicates and merges.",
+    advantages: "Discovers related documents through graph connections that pure text/vector search would miss. Reveals hidden relationships.",
+  },
 ];
 const LAYOUTS = ["force", "tree", "circle"];
 
@@ -24,6 +44,8 @@ export default function SearchPage() {
   const [error, setError] = useState("");
   const [pipeline, setPipeline] = useState(null);
   const [showPipeline, setShowPipeline] = useState(false);
+  const [taxonomyExpansion, setTaxonomyExpansion] = useState(false);
+  const [expandedTerms, setExpandedTerms] = useState([]);
 
   // Load full graph on mount / source change
   const loadGraph = useCallback(async () => {
@@ -45,9 +67,10 @@ export default function SearchPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.search(searchType, { query, source });
+      const res = await api.search(searchType, { query, source, taxonomyExpansion });
       setResults(res.results || []);
       setPipeline(res.pipeline || null);
+      setExpandedTerms(res.expandedTerms || []);
     } catch (err) {
       setError(err.message);
       setResults([]);
@@ -114,17 +137,32 @@ export default function SearchPage() {
         <fieldset className="flex gap-2 items-center">
           <legend className="text-gray-500 text-xs mr-2">Search Type:</legend>
           {SEARCH_TYPES.map((t) => (
-            <label key={t.value} className="flex items-center gap-1 cursor-pointer">
-              <input
-                type="radio"
-                name="searchType"
-                value={t.value}
-                checked={searchType === t.value}
-                onChange={() => setSearchType(t.value)}
-                className="accent-emerald-500"
-              />
-              <span className="text-gray-400">{t.label}</span>
-            </label>
+            <div key={t.value} className="relative group">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="searchType"
+                  value={t.value}
+                  checked={searchType === t.value}
+                  onChange={() => setSearchType(t.value)}
+                  className="accent-emerald-500"
+                />
+                <span className="text-gray-400 border-b border-dotted border-gray-600 group-hover:text-white transition">
+                  {t.label}
+                </span>
+              </label>
+              {/* Tooltip */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none">
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-800 border-l border-t border-gray-600 rotate-45" />
+                <h4 className="text-emerald-400 font-semibold text-xs mb-1.5">{t.label}</h4>
+                <p className="text-gray-300 text-xs leading-relaxed mb-1.5">
+                  <span className="text-gray-500 font-medium">Method: </span>{t.method}
+                </p>
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  <span className="text-gray-500 font-medium">Advantages: </span>{t.advantages}
+                </p>
+              </div>
+            </div>
           ))}
         </fieldset>
 
@@ -177,7 +215,44 @@ export default function SearchPage() {
         >
           Load Full Graph
         </button>
+
+        <div className="relative group">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={taxonomyExpansion}
+              onChange={(e) => setTaxonomyExpansion(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            <span className="text-gray-400 text-xs border-b border-dotted border-gray-600 group-hover:text-white transition">Taxonomy Expansion</span>
+          </label>
+          {/* Tooltip */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none">
+            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-800 border-l border-t border-gray-600 rotate-45" />
+            <h4 className="text-emerald-400 font-semibold text-xs mb-1.5">Taxonomy Expansion</h4>
+            <p className="text-gray-300 text-xs leading-relaxed mb-1.5">
+              <span className="text-gray-500 font-medium">How it works: </span>
+              Matches your query against the taxonomy tree, then automatically includes all descendant concepts in the search. For example, searching "Audit" also matches documents tagged with "Revenue Recognition", "IFRS 15", "Lease Accounting", etc.
+            </p>
+            <p className="text-gray-300 text-xs leading-relaxed">
+              <span className="text-gray-500 font-medium">Advantages: </span>
+              Broader recall without manually listing every sub-concept. Ensures you find all relevant documents across the entire branch of the taxonomy hierarchy, even when they use more specific terminology.
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Expanded terms badges */}
+      {expandedTerms.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-gray-500">Expanded terms:</span>
+          {expandedTerms.map((term, i) => (
+            <span key={i} className="bg-emerald-900/50 border border-emerald-700 text-emerald-300 px-2 py-0.5 rounded">
+              {term}
+            </span>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-900/40 border border-red-700 text-red-300 px-4 py-2 rounded text-sm">

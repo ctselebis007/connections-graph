@@ -60,6 +60,33 @@ const AGENTS = [
     placeholder: "2024-03-19",
     field: "cutoffDate",
   },
+  {
+    id: "concept-impact",
+    label: "Concept Impact",
+    description: "Find all documents affected if a concept or standard changes (includes descendant and ontology-linked concepts)",
+    inputLabel: "Concept ID",
+    placeholder: "T_IFRS15",
+    field: "conceptId",
+    isOntology: true,
+  },
+  {
+    id: "taxonomy-gap-detector",
+    label: "Taxonomy Gap Detector",
+    description: "Find untagged documents, empty concepts, and poorly tagged documents",
+    inputLabel: null,
+    placeholder: null,
+    field: null,
+    isOntology: true,
+  },
+  {
+    id: "relationship-suggester",
+    label: "Relationship Suggester",
+    description: "Suggest new ontology relationships based on document co-occurrence patterns",
+    inputLabel: "Min co-occurrences (default: 3)",
+    placeholder: "3",
+    field: "minCoOccurrence",
+    isOntology: true,
+  },
 ];
 
 export default function AgentsPage() {
@@ -75,14 +102,24 @@ export default function AgentsPage() {
     setError("");
     setResult(null);
     try {
-      const body = {};
-      if (selected.field) {
-        body[selected.field] = inputVal;
+      let res;
+      if (selected.isOntology) {
+        // Route ontology agents to taxonomy API
+        const body = {};
+        if (selected.field) body[selected.field] = inputVal;
+        if (selected.id === "concept-impact") {
+          res = await api.ontologyConceptImpact(body);
+        } else if (selected.id === "taxonomy-gap-detector") {
+          res = await api.ontologyGapDetector();
+        } else if (selected.id === "relationship-suggester") {
+          res = await api.ontologyRelationshipSuggester(body);
+        }
+      } else {
+        const body = {};
+        if (selected.field) body[selected.field] = inputVal;
+        if (selected.hasDepth) body.depth = depth;
+        res = await api.agent(selected.id, body);
       }
-      if (selected.hasDepth) {
-        body.depth = depth;
-      }
-      const res = await api.agent(selected.id, body);
       setResult(res);
     } catch (err) {
       setError(err.message);
@@ -102,15 +139,20 @@ export default function AgentsPage() {
       {/* Agent selector */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold mb-3">Agents</h2>
-        {AGENTS.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => {
-              setSelected(a);
-              setResult(null);
-              setError("");
-              setInputVal("");
-            }}
+        {AGENTS.map((a, idx) => (
+          <div key={a.id}>
+            {a.isOntology && idx > 0 && !AGENTS[idx - 1].isOntology && (
+              <div className="border-t border-gray-700 my-3 pt-1">
+                <span className="text-[10px] text-indigo-400 uppercase font-semibold tracking-wider">Ontology Agents</span>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setSelected(a);
+                setResult(null);
+                setError("");
+                setInputVal("");
+              }}
             className={`w-full text-left px-4 py-3 rounded border transition ${
               selected.id === a.id
                 ? "bg-emerald-900/40 border-emerald-600 text-emerald-300"
@@ -120,6 +162,7 @@ export default function AgentsPage() {
             <div className="font-medium text-sm">{a.label}</div>
             <div className="text-xs mt-0.5 opacity-70">{a.description}</div>
           </button>
+          </div>
         ))}
       </div>
 
@@ -343,6 +386,133 @@ export default function AgentsPage() {
                   layout="force"
                   height={400}
                 />
+              </div>
+            )}
+
+            {/* Concept Impact results */}
+            {selected.id === "concept-impact" && result.concept && (
+              <div className="space-y-3">
+                <div className="bg-gray-800 border border-gray-700 rounded p-3 text-sm">
+                  <span className="text-gray-500">Concept:</span>
+                  <span className="ml-2 text-emerald-400 font-mono">{result.concept._id}</span>
+                  <span className="ml-2 text-white">{result.concept.label}</span>
+                </div>
+                <div className="flex gap-4 text-xs text-gray-500">
+                  <span>Descendants: <span className="text-gray-300">{result.descendants?.length || 0}</span></span>
+                  <span>Related Edges: <span className="text-gray-300">{result.relatedEdges?.length || 0}</span></span>
+                  <span>Affected Docs: <span className="text-yellow-400">{result.affectedDocuments?.length || 0}</span></span>
+                </div>
+                {result.descendants?.length > 0 && (
+                  <div className="text-xs">
+                    <span className="text-gray-500">Descendants: </span>
+                    <span className="text-gray-400">
+                      {result.descendants.map((d) => d.label).join(", ")}
+                    </span>
+                  </div>
+                )}
+                {result.affectedDocuments?.length > 0 && (
+                  <div className="overflow-auto max-h-60 border border-gray-800 rounded">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-800 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">ID</th>
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Title</th>
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Concepts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.affectedDocuments.map((d) => (
+                          <tr key={d._id} className="border-t border-gray-800">
+                            <td className="px-3 py-2 font-mono text-emerald-400">{d._id}</td>
+                            <td className="px-3 py-2 text-gray-300 truncate max-w-[200px]">{d.documentTitle || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500 text-xs">{(d.conceptIDs || []).join(", ")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Taxonomy Gap Detector results */}
+            {selected.id === "taxonomy-gap-detector" && result.summary && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    ["Total Docs", result.summary.totalDocuments, "text-gray-300"],
+                    ["Untagged", result.summary.untagged, "text-red-400"],
+                    ["Empty Concepts", result.summary.emptyConcepts, "text-yellow-400"],
+                    ["Poorly Tagged", result.summary.poorlyTagged, "text-orange-400"],
+                  ].map(([label, val, color]) => (
+                    <div key={label} className="bg-gray-800 rounded p-3 text-center">
+                      <div className={`text-2xl font-bold ${color}`}>{val}</div>
+                      <div className="text-xs text-gray-500 mt-1">{label}</div>
+                    </div>
+                  ))}
+                </div>
+                {result.emptyConcepts?.length > 0 && (
+                  <div>
+                    <h4 className="text-xs text-gray-500 uppercase font-semibold mb-1">Empty Concepts (no documents)</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {result.emptyConcepts.map((c) => (
+                        <span key={c._id} className="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded">
+                          {c.label} <span className="text-gray-600">({c._id})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result.untaggedDocuments?.length > 0 && (
+                  <div>
+                    <h4 className="text-xs text-gray-500 uppercase font-semibold mb-1">Untagged Documents</h4>
+                    <div className="overflow-auto max-h-40 border border-gray-800 rounded">
+                      <table className="w-full text-xs">
+                        <tbody>
+                          {result.untaggedDocuments.map((d) => (
+                            <tr key={d._id} className="border-t border-gray-800">
+                              <td className="px-3 py-1 font-mono text-emerald-400">{d._id}</td>
+                              <td className="px-3 py-1 text-gray-400">{d.documentTitle || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Relationship Suggester results */}
+            {selected.id === "relationship-suggester" && Array.isArray(result) && (
+              <div className="space-y-2">
+                <h4 className="text-xs text-gray-500 uppercase font-semibold">
+                  Suggestions ({result.length})
+                </h4>
+                {result.length > 0 ? (
+                  <div className="overflow-auto max-h-60 border border-gray-800 rounded">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-800 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Source</th>
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Target</th>
+                          <th className="text-right px-3 py-2 text-gray-400 font-medium">Co-occurrences</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.map((s, i) => (
+                          <tr key={i} className="border-t border-gray-800">
+                            <td className="px-3 py-2 text-gray-300">{s.sourceLabel} <span className="text-gray-600 text-xs">({s.sourceID})</span></td>
+                            <td className="px-3 py-2 text-gray-300">{s.targetLabel} <span className="text-gray-600 text-xs">({s.targetID})</span></td>
+                            <td className="px-3 py-2 text-right text-yellow-400 font-mono">{s.coOccurrences}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-600">No suggestions found above threshold.</p>
+                )}
               </div>
             )}
 

@@ -2,9 +2,11 @@ import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import SetupPage from "./pages/SetupPage.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import AgentsPage from "./pages/AgentsPage.jsx";
+import TaxonomyPage from "./pages/TaxonomyPage.jsx";
 
 const navItems = [
   { to: "/", label: "Setup" },
+  { to: "/taxonomy", label: "Taxonomy" },
   { to: "/search", label: "Search" },
   { to: "/agents", label: "Agents" },
 ];
@@ -16,7 +18,7 @@ export default function App() {
         {/* Nav */}
         <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex gap-6 items-center">
           <span className="text-lg font-bold text-emerald-400 mr-4">
-            Connections Graph
+            Graph Connections
           </span>
           {navItems.map((n) => (
             <NavLink
@@ -42,6 +44,7 @@ export default function App() {
             <Route path="/" element={<SetupPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/taxonomy" element={<TaxonomyPage />} />
           </Routes>
         </main>
       </div>

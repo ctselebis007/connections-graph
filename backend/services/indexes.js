@@ -43,6 +43,26 @@ export async function createIndexes() {
   await edges.createIndex({ channelID: 1 }, { name: "idx_channelID" });
   log.push("Created 4 indexes on 'graph_edges'");
 
+  // --- conceptIDs on documents and graph_nodes ---
+  await docs.createIndex({ conceptIDs: 1 }, { name: "idx_conceptIDs" });
+  await nodes.createIndex({ conceptIDs: 1 }, { name: "idx_conceptIDs" });
+  log.push("Created conceptIDs indexes on 'documents' and 'graph_nodes'");
+
+  // --- taxonomy_nodes ---
+  const taxNodes = db.collection("taxonomy_nodes");
+  await taxNodes.createIndex({ type: 1 }, { name: "idx_type" });
+  await taxNodes.createIndex({ level: 1 }, { name: "idx_level" });
+  await taxNodes.createIndex({ path: 1 }, { name: "idx_path" });
+  await taxNodes.createIndex({ label: 1 }, { name: "idx_label" });
+  log.push("Created 4 indexes on 'taxonomy_nodes'");
+
+  // --- taxonomy_edges ---
+  const taxEdges = db.collection("taxonomy_edges");
+  await taxEdges.createIndex({ sourceID: 1, targetID: 1 }, { name: "idx_source_target" });
+  await taxEdges.createIndex({ targetID: 1 }, { name: "idx_targetID" });
+  await taxEdges.createIndex({ relationshipType: 1 }, { name: "idx_relationshipType" });
+  log.push("Created 3 indexes on 'taxonomy_edges'");
+
   return { success: true, log };
 }
 

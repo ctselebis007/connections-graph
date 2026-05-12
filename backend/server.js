@@ -3,6 +3,7 @@ import cors from "cors";
 import setupRoutes from "./routes/setup.js";
 import searchRoutes from "./routes/search.js";
 import agentRoutes from "./routes/agents.js";
+import taxonomyRoutes from "./routes/taxonomy.js";
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -13,6 +14,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use("/api/setup", setupRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/agents", agentRoutes);
+app.use("/api/taxonomy", taxonomyRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });

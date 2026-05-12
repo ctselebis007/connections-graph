@@ -1,5 +1,6 @@
 import { getDb } from "./mongo.js";
 import { embedQuery } from "./embeddings.js";
+import { getDescendantsBFS } from "./taxonomy.js";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -17,20 +18,65 @@ function collectionName(source) {
   return source === "graph" ? "graph_nodes" : "documents";
 }
 
+/**
+ * If taxonomyExpansion is enabled, find matching taxonomy nodes and
+ * expand the query to include all descendant concept labels.
+ * Returns { expandedQuery, expandedTerms }.
+ */
+async function expandQueryWithTaxonomy(query) {
+  const db = getDb();
+  // Case-insensitive search for taxonomy nodes matching any word in the query
+  const queryWords = query.split(/\s+/).filter((w) => w.length > 2);
+  if (queryWords.length === 0) return { expandedQuery: query, expandedTerms: [] };
+
+  const regexPatterns = queryWords.map((w) => new RegExp(w, "i"));
+  const matchingNodes = await db.collection("taxonomy_nodes").find({
+    $or: regexPatterns.map((r) => ({ label: r })),
+  }).toArray();
+
+  if (matchingNodes.length === 0) return { expandedQuery: query, expandedTerms: [] };
+
+  const allLabels = new Set();
+  const expandedTerms = [];
+
+  for (const node of matchingNodes) {
+    allLabels.add(node.label);
+    expandedTerms.push(node.label);
+    const descendants = await getDescendantsBFS(node._id);
+    for (const d of descendants) {
+      allLabels.add(d.label);
+      expandedTerms.push(d.label);
+    }
+  }
+
+  // Build expanded query by adding descendant labels
+  const expandedQuery = [query, ...allLabels].join(" ");
+  return { expandedQuery, expandedTerms: [...new Set(expandedTerms)] };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Lexical Search  (Atlas Search $search)                             */
 /* ------------------------------------------------------------------ */
 
-export async function lexicalSearch({ query, filters, source }) {
+export async function lexicalSearch({ query, filters, source, taxonomyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
+
+  let searchQuery = query;
+  let expandedTerms = [];
+
+  if (taxonomyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query);
+    searchQuery = expansion.expandedQuery;
+    expandedTerms = expansion.expandedTerms;
+  }
 
   const pipeline = [
     {
       $search: {
         index: "default",
         text: {
-          query,
+          query: searchQuery,
           path: [
             "documentTitle",
             "metadata.searchtopic",
@@ -52,17 +98,27 @@ export async function lexicalSearch({ query, filters, source }) {
   }
 
   const results = await coll.aggregate(pipeline).toArray();
-  return { results, pipeline };
+  return { results, pipeline, expandedTerms };
 }
 
 /* ------------------------------------------------------------------ */
 /*  Vector Search  (Atlas $vectorSearch)                                */
 /* ------------------------------------------------------------------ */
 
-export async function vectorSearch({ query, filters, source }) {
+export async function vectorSearch({ query, filters, source, taxonomyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
-  const queryVector = await embedQuery(query);
+
+  let embedText = query;
+  let expandedTerms = [];
+
+  if (taxonomyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query);
+    embedText = expansion.expandedQuery;
+    expandedTerms = expansion.expandedTerms;
+  }
+
+  const queryVector = await embedQuery(embedText);
 
   const pipeline = [
     {
@@ -92,17 +148,27 @@ export async function vectorSearch({ query, filters, source }) {
     return stage;
   });
 
-  return { results, pipeline: displayPipeline };
+  return { results, pipeline: displayPipeline, expandedTerms };
 }
 
 /* ------------------------------------------------------------------ */
 /*  Hybrid Search  (MongoDB native $rankFusion)                        */
 /* ------------------------------------------------------------------ */
 
-export async function hybridSearch({ query, filters, source }) {
+export async function hybridSearch({ query, filters, source, taxonomyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
-  const queryVector = await embedQuery(query);
+
+  let searchQuery = query;
+  let expandedTerms = [];
+
+  if (taxonomyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query);
+    searchQuery = expansion.expandedQuery;
+    expandedTerms = expansion.expandedTerms;
+  }
+
+  const queryVector = await embedQuery(searchQuery);
 
   const textPaths = [
     "documentTitle",
@@ -137,7 +203,7 @@ export async function hybridSearch({ query, filters, source }) {
                       // Exact phrase matching (highest priority)
                       ...textPaths.map((p) => ({
                         phrase: {
-                          query,
+                          query: searchQuery,
                           path: p,
                           score: { boost: { value: p === "documentTitle" ? 10 : 8 } },
                         },
@@ -145,7 +211,7 @@ export async function hybridSearch({ query, filters, source }) {
                       // Individual word matching (medium priority)
                       ...textPaths.map((p) => ({
                         text: {
-                          query,
+                          query: searchQuery,
                           path: p,
                           score: { boost: { value: p === "documentTitle" ? 5 : 4 } },
                         },
@@ -153,7 +219,7 @@ export async function hybridSearch({ query, filters, source }) {
                       // Fuzzy matching (lowest priority)
                       ...textPaths.map((p) => ({
                         text: {
-                          query,
+                          query: searchQuery,
                           path: p,
                           fuzzy: { maxEdits: 1, prefixLength: 3 },
                           score: { boost: { value: p === "documentTitle" ? 2 : 1.5 } },
@@ -197,17 +263,27 @@ export async function hybridSearch({ query, filters, source }) {
     return value;
   }));
 
-  return { results, pipeline: displayPipeline };
+  return { results, pipeline: displayPipeline, expandedTerms };
 }
 
 /* ------------------------------------------------------------------ */
 /*  Hybrid Graph Search  (Vector → Graph Expansion via $facet)         */
 /* ------------------------------------------------------------------ */
 
-export async function hybridGraphSearch({ query, filters, source }) {
+export async function hybridGraphSearch({ query, filters, source, taxonomyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
-  const queryVector = await embedQuery(query);
+
+  let embedText = query;
+  let expandedTerms = [];
+
+  if (taxonomyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query);
+    embedText = expansion.expandedQuery;
+    expandedTerms = expansion.expandedTerms;
+  }
+
+  const queryVector = await embedQuery(embedText);
 
   const pipeline = [
     // Step 1: Vector search for exactly 5 seed documents
@@ -339,5 +415,5 @@ export async function hybridGraphSearch({ query, filters, source }) {
     return value;
   }));
 
-  return { results, pipeline: displayPipelineHG };
+  return { results, pipeline: displayPipelineHG, expandedTerms };
 }

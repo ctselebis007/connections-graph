@@ -229,10 +229,10 @@ def main():
             "Supports VoyageAI and OpenAI for embeddings."
         ))
 
-    # ── SECTION: Demo — Connections Graph ─────────────────────
+    # ── SECTION: Demo — Graph Connections ─────────────────────
 
     add_section_slide(prs, section_layout,
-                      "Demo: Connections Graph")
+                      "Demo: Graph Connections")
 
     # -- Setup & Indexes --
 
