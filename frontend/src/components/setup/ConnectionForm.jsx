@@ -1,19 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const PROVIDER_MODELS = {
   voyageai: [{ value: "voyage-4-lite", label: "voyage-4-lite (1024 dims)" }],
   openai: [{ value: "text-embedding-ada-002", label: "text-embedding-ada-002 (1536 dims)" }],
 };
 
+const STORAGE_KEY = "graph_connections_setup";
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ConnectionForm({ onConnect }) {
-  const [uri, setUri] = useState("");
-  const [dbName, setDbName] = useState("");
-  const [embeddingProvider, setEmbeddingProvider] = useState("voyageai");
-  const [embeddingApiKey, setEmbeddingApiKey] = useState("");
-  const [embeddingModel, setEmbeddingModel] = useState("voyage-4-lite");
+  const saved = loadSaved();
+  const [uri, setUri] = useState(saved?.uri || "");
+  const [dbName, setDbName] = useState(saved?.dbName || "");
+  const [embeddingProvider, setEmbeddingProvider] = useState(saved?.embeddingProvider || "voyageai");
+  const [embeddingApiKey, setEmbeddingApiKey] = useState(saved?.embeddingApiKey || "");
+  const [embeddingModel, setEmbeddingModel] = useState(saved?.embeddingModel || "voyage-4-lite");
   const [showUri, setShowUri] = useState(false);
   const [showDb, setShowDb] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [saveConfirm, setSaveConfirm] = useState(false);
 
   const handleProviderChange = (provider) => {
     setEmbeddingProvider(provider);
@@ -23,6 +36,17 @@ export default function ConnectionForm({ onConnect }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onConnect({ uri, dbName, embeddingProvider, embeddingApiKey, embeddingModel });
+  };
+
+  const handleSave = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ uri, dbName, embeddingProvider, embeddingApiKey, embeddingModel }));
+    setSaveConfirm(true);
+    setTimeout(() => setSaveConfirm(false), 2000);
+  };
+
+  const handleClearSaved = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setSaveConfirm(false);
   };
 
   const keyLabel = embeddingProvider === "openai" ? "OpenAI API Key" : "VoyageAI API Key";
@@ -122,12 +146,28 @@ export default function ConnectionForm({ onConnect }) {
           ))}
         </select>
       </div>
-      <button
-        type="submit"
-        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-medium transition"
-      >
-        Establish Connection
-      </button>
+      <div className="flex gap-2 items-center">
+        <button
+          type="submit"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-medium transition"
+        >
+          Establish Connection
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition"
+        >
+          {saveConfirm ? "✓ Saved!" : "Save Settings"}
+        </button>
+        <button
+          type="button"
+          onClick={handleClearSaved}
+          className="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm font-medium transition"
+        >
+          Clear Saved
+        </button>
+      </div>
     </form>
   );
 }

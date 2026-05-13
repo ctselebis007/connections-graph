@@ -1,6 +1,5 @@
 import { getDb } from "./mongo.js";
 import { embedQuery } from "./embeddings.js";
-import { getDescendantsBFS } from "./taxonomy.js";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -19,13 +18,13 @@ function collectionName(source) {
 }
 
 /**
- * If taxonomyExpansion is enabled, find matching taxonomy nodes and
- * expand the query to include all descendant concept labels.
+ * Expand query using taxonomy (parent-child only) and/or ontology (is-a, part-of, etc.).
+ * @param {string} query
+ * @param {{ taxonomy?: boolean, ontology?: boolean }} options
  * Returns { expandedQuery, expandedTerms }.
  */
-async function expandQueryWithTaxonomy(query) {
+async function expandQueryWithTaxonomy(query, { taxonomy = false, ontology = false } = {}) {
   const db = getDb();
-  // Case-insensitive search for taxonomy nodes matching any word in the query
   const queryWords = query.split(/\s+/).filter((w) => w.length > 2);
   if (queryWords.length === 0) return { expandedQuery: query, expandedTerms: [] };
 
@@ -36,20 +35,73 @@ async function expandQueryWithTaxonomy(query) {
 
   if (matchingNodes.length === 0) return { expandedQuery: query, expandedTerms: [] };
 
+  // Determine which relationship types to follow
+  const expansionTypes = [];
+  if (taxonomy) expansionTypes.push("parent-child");
+  if (ontology) expansionTypes.push("is-a", "part-of", "applies-to", "supersedes", "governed-by");
+  if (expansionTypes.length === 0) return { expandedQuery: query, expandedTerms: [] };
+
+  // Incoming edge types (reverse traversal)
+  const incomingTypes = ontology ? ["is-a", "part-of", "applies-to", "supersedes"] : [];
+
   const allLabels = new Set();
   const expandedTerms = [];
+  const edgesColl = db.collection("taxonomy_edges");
+  const nodesColl = db.collection("taxonomy_nodes");
 
   for (const node of matchingNodes) {
     allLabels.add(node.label);
     expandedTerms.push(node.label);
-    const descendants = await getDescendantsBFS(node._id);
-    for (const d of descendants) {
-      allLabels.add(d.label);
-      expandedTerms.push(d.label);
+
+    // BFS traversal
+    const visited = new Set([node._id]);
+    const queue = [node._id];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+
+      // Outgoing edges for selected relationship types
+      const outEdges = await edgesColl.find({
+        sourceID: current,
+        relationshipType: { $in: expansionTypes },
+      }).toArray();
+
+      for (const e of outEdges) {
+        if (!visited.has(e.targetID)) {
+          visited.add(e.targetID);
+          queue.push(e.targetID);
+        }
+      }
+
+      // Incoming edges (only for ontology types)
+      if (incomingTypes.length > 0) {
+        const inEdges = await edgesColl.find({
+          targetID: current,
+          relationshipType: { $in: incomingTypes },
+        }).toArray();
+
+        for (const e of inEdges) {
+          if (!visited.has(e.sourceID)) {
+            visited.add(e.sourceID);
+            queue.push(e.sourceID);
+          }
+        }
+      }
+    }
+
+    // Remove the root node itself from visited set
+    visited.delete(node._id);
+
+    // Fetch labels for all discovered nodes
+    if (visited.size > 0) {
+      const relatedNodes = await nodesColl.find({ _id: { $in: [...visited] } }).toArray();
+      for (const r of relatedNodes) {
+        allLabels.add(r.label);
+        expandedTerms.push(r.label);
+      }
     }
   }
 
-  // Build expanded query by adding descendant labels
   const expandedQuery = [query, ...allLabels].join(" ");
   return { expandedQuery, expandedTerms: [...new Set(expandedTerms)] };
 }
@@ -58,15 +110,15 @@ async function expandQueryWithTaxonomy(query) {
 /*  Lexical Search  (Atlas Search $search)                             */
 /* ------------------------------------------------------------------ */
 
-export async function lexicalSearch({ query, filters, source, taxonomyExpansion }) {
+export async function lexicalSearch({ query, filters, source, taxonomyExpansion, ontologyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
 
   let searchQuery = query;
   let expandedTerms = [];
 
-  if (taxonomyExpansion) {
-    const expansion = await expandQueryWithTaxonomy(query);
+  if (taxonomyExpansion || ontologyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query, { taxonomy: taxonomyExpansion, ontology: ontologyExpansion });
     searchQuery = expansion.expandedQuery;
     expandedTerms = expansion.expandedTerms;
   }
@@ -105,15 +157,15 @@ export async function lexicalSearch({ query, filters, source, taxonomyExpansion 
 /*  Vector Search  (Atlas $vectorSearch)                                */
 /* ------------------------------------------------------------------ */
 
-export async function vectorSearch({ query, filters, source, taxonomyExpansion }) {
+export async function vectorSearch({ query, filters, source, taxonomyExpansion, ontologyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
 
   let embedText = query;
   let expandedTerms = [];
 
-  if (taxonomyExpansion) {
-    const expansion = await expandQueryWithTaxonomy(query);
+  if (taxonomyExpansion || ontologyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query, { taxonomy: taxonomyExpansion, ontology: ontologyExpansion });
     embedText = expansion.expandedQuery;
     expandedTerms = expansion.expandedTerms;
   }
@@ -155,15 +207,15 @@ export async function vectorSearch({ query, filters, source, taxonomyExpansion }
 /*  Hybrid Search  (MongoDB native $rankFusion)                        */
 /* ------------------------------------------------------------------ */
 
-export async function hybridSearch({ query, filters, source, taxonomyExpansion }) {
+export async function hybridSearch({ query, filters, source, taxonomyExpansion, ontologyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
 
   let searchQuery = query;
   let expandedTerms = [];
 
-  if (taxonomyExpansion) {
-    const expansion = await expandQueryWithTaxonomy(query);
+  if (taxonomyExpansion || ontologyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query, { taxonomy: taxonomyExpansion, ontology: ontologyExpansion });
     searchQuery = expansion.expandedQuery;
     expandedTerms = expansion.expandedTerms;
   }
@@ -270,15 +322,15 @@ export async function hybridSearch({ query, filters, source, taxonomyExpansion }
 /*  Hybrid Graph Search  (Vector → Graph Expansion via $facet)         */
 /* ------------------------------------------------------------------ */
 
-export async function hybridGraphSearch({ query, filters, source, taxonomyExpansion }) {
+export async function hybridGraphSearch({ query, filters, source, taxonomyExpansion, ontologyExpansion }) {
   const db = getDb();
   const coll = db.collection(collectionName(source));
 
   let embedText = query;
   let expandedTerms = [];
 
-  if (taxonomyExpansion) {
-    const expansion = await expandQueryWithTaxonomy(query);
+  if (taxonomyExpansion || ontologyExpansion) {
+    const expansion = await expandQueryWithTaxonomy(query, { taxonomy: taxonomyExpansion, ontology: ontologyExpansion });
     embedText = expansion.expandedQuery;
     expandedTerms = expansion.expandedTerms;
   }

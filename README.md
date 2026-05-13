@@ -41,7 +41,7 @@ Frontend (React 19 + Vite + Tailwind + D3.js)     Backend (Express 5 + Node.js)
   │  • Similarity Finder               │           │  • similarity-finder                 │
   │  • Critical Node / Hub Detection   │           │  • critical-node                     │
   │  • Stale Document Detector         │           │  • stale-document-detector           │
-  │  Taxonomy Page                     │──────────►│  /api/taxonomy/*                      │
+  │  Taxonomy Page                     │──────────►│  /api/taxonomy/*                     │
   │  • Tree view / Ontology graph view │           │  • CRUD nodes, edges, properties     │
   │  • Drag-drop reparenting           │           │  • ontology relationships CRUD       │
   │  • Properties editor               │           │  • inference (ancestor auto-tag)     │
@@ -79,7 +79,7 @@ Frontend (React 19 + Vite + Tailwind + D3.js)     Backend (Express 5 + Node.js)
 | **Hybrid ($rankFusion)** | Native MongoDB `$rankFusion` combining vector + text search | Weighted fusion (50/50) with compound `$search` (phrase, word, fuzzy at 3 boost tiers) |
 | **Hybrid Graph** | Vector seeds → graph expansion via `$facet` | `$vectorSearch` (5 seeds) → `$facet` → `$graphLookup` (depth 5) → deduplicate → merge |
 
-All search types support a **Data Source** toggle to query either the `documents` collection (Approach A) or `graph_nodes` (Approach B). A **Taxonomy Expansion** toggle expands queries using the taxonomy hierarchy (e.g., searching "Audit" also matches documents tagged with descendant concepts like "Revenue Recognition", "IFRS 15", etc.). An **Aggregation Pipeline** toggle shows the exact MongoDB pipeline executed.
+All search types support a **Data Source** toggle to query either the `documents` collection (Approach A) or `graph_nodes` (Approach B). A **Taxonomy & Ontology Expansion** toggle expands queries by traversing the full ontology graph — parent-child hierarchy plus all relationship types (is-a, part-of, applies-to, supersedes, governed-by). For example, searching "IFRS 15" also matches documents tagged with its parent "Revenue Recognition", related standards via is-a, and concepts it applies-to or supersedes. An **Aggregation Pipeline** toggle shows the exact MongoDB pipeline executed.
 
 ### Taxonomy & Ontology Management
 
