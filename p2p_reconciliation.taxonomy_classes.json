@@ -1,0 +1,179 @@
+[{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f346"
+  },
+  "category": "source_document",
+  "document_type": "purchase_order",
+  "collection_name": "purchase_orders",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Original business documents that initiate or record transactions",
+  "optional_fields": [
+    "delivery_date",
+    "payment_terms",
+    "notes"
+  ],
+  "required_fields": [
+    "po_number",
+    "company",
+    "vendor",
+    "line_items",
+    "totals"
+  ]
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f347"
+  },
+  "document_type": "invoice",
+  "category": "source_document",
+  "collection_name": "invoices",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Original business documents that initiate or record transactions",
+  "optional_fields": [
+    "po_reference",
+    "payment_terms",
+    "payment_instructions",
+    "notes"
+  ],
+  "required_fields": [
+    "invoice_number",
+    "company",
+    "vendor",
+    "line_items",
+    "totals"
+  ]
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f348"
+  },
+  "category": "source_document",
+  "document_type": "contract",
+  "collection_name": "contracts",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Original business documents that initiate or record transactions",
+  "optional_fields": [],
+  "required_fields": []
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f349"
+  },
+  "document_type": "general_ledger",
+  "category": "financial_record",
+  "collection_name": "general_ledger",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Financial system records that capture monetary transactions",
+  "optional_fields": [
+    "period",
+    "start_date",
+    "end_date"
+  ],
+  "required_fields": [
+    "company_name",
+    "entries",
+    "totals"
+  ]
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34a"
+  },
+  "category": "financial_record",
+  "document_type": "batch_payment",
+  "collection_name": "batch_payments",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Financial system records that capture monetary transactions",
+  "optional_fields": [],
+  "required_fields": []
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34b"
+  },
+  "document_type": "bank_statement",
+  "category": "financial_record",
+  "collection_name": "bank_statements",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Financial system records that capture monetary transactions",
+  "optional_fields": [],
+  "required_fields": []
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34c"
+  },
+  "category": "governance_document",
+  "document_type": "accounting_policy",
+  "collection_name": "policies",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Policy and compliance documents governing financial operations",
+  "optional_fields": [
+    "expense_category",
+    "recognition_basis",
+    "measurement_basis"
+  ],
+  "required_fields": [
+    "policy_id",
+    "company_name",
+    "approval_threshold"
+  ]
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34d"
+  },
+  "document_type": "reconciliation_match",
+  "category": "reconciliation_result",
+  "collection_name": "reconciliation_results",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Results of reconciliation matching processes",
+  "optional_fields": [
+    "po_number",
+    "policy_id"
+  ],
+  "required_fields": [
+    "transaction_id",
+    "invoice_number",
+    "checks",
+    "overall_status"
+  ]
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34e"
+  },
+  "category": "reconciliation_result",
+  "document_type": "reconciliation_mismatch",
+  "collection_name": "reconciliation_results",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.555Z"
+  },
+  "description": "Results of reconciliation matching processes",
+  "optional_fields": [
+    "po_number",
+    "policy_id"
+  ],
+  "required_fields": [
+    "transaction_id",
+    "invoice_number",
+    "checks",
+    "discrepancies"
+  ]
+}]

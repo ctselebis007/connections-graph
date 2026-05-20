@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 const TYPE_COLORS = {
   category: "bg-purple-600",
   topic: "bg-blue-600",
   standard: "bg-emerald-600",
   concept: "bg-yellow-600",
+  rule: "bg-orange-600",
 };
 
 const TYPE_DOT_COLORS = {
@@ -12,6 +13,7 @@ const TYPE_DOT_COLORS = {
   topic: "bg-blue-400",
   standard: "bg-emerald-400",
   concept: "bg-yellow-400",
+  rule: "bg-orange-400",
 };
 
 function TreeNode({ node, depth, selectedNodeId, onNodeSelect, onNodeMove, expandedIds, toggleExpand }) {
@@ -116,6 +118,19 @@ function collectAllIds(nodes) {
 export default function TaxonomyTree({ tree, selectedNodeId, onNodeSelect, onNodeMove }) {
   const [expandedIds, setExpandedIds] = useState(() => collectAllIds(tree));
 
+  // Derive the node types actually present in this tree
+  const activeTypes = useMemo(() => {
+    const types = new Set();
+    function walk(items) {
+      for (const n of items) {
+        if (n.type) types.add(n.type);
+        if (n.children) walk(n.children);
+      }
+    }
+    walk(tree);
+    return [...types];
+  }, [tree]);
+
   // Update expanded set when tree changes
   const allIds = collectAllIds(tree);
   // Auto-expand newly added nodes
@@ -157,9 +172,9 @@ export default function TaxonomyTree({ tree, selectedNodeId, onNodeSelect, onNod
 
       {/* Legend */}
       <div className="flex gap-3 pt-4 border-t border-gray-800 mt-4 text-xs text-gray-500 flex-wrap">
-        {Object.entries(TYPE_COLORS).map(([type, color]) => (
+        {activeTypes.map((type) => (
           <span key={type} className="flex items-center gap-1">
-            <span className={`w-2 h-2 rounded-full ${TYPE_DOT_COLORS[type]}`} />
+            <span className={`w-2 h-2 rounded-full ${TYPE_DOT_COLORS[type] || 'bg-gray-400'}`} />
             {type}
           </span>
         ))}

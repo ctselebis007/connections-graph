@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import * as d3 from "d3";
 
 const TYPE_COLORS = {
@@ -6,25 +6,40 @@ const TYPE_COLORS = {
   topic: "#60a5fa",     // blue
   standard: "#34d399",  // emerald
   concept: "#fbbf24",   // yellow
+  rule: "#fb923c",      // orange
 };
 
-const REL_COLORS = {
+// Base palette for relationship types — extended dynamically
+const BASE_REL_COLORS = {
   "parent-child": "#6b7280",
   "is-a": "#a78bfa",
   "part-of": "#60a5fa",
   "applies-to": "#34d399",
   "supersedes": "#f87171",
   "governed-by": "#fbbf24",
+  "references": "#38bdf8",
+  "records": "#818cf8",
+  "authorizes": "#fb7185",
+  "governs": "#facc15",
+  "validates": "#4ade80",
 };
 
-const REL_DASH = {
+const BASE_REL_DASH = {
   "parent-child": "",
   "is-a": "6,3",
   "part-of": "4,4",
   "applies-to": "8,4",
   "supersedes": "2,4",
   "governed-by": "10,3,2,3",
+  "references": "5,3",
+  "records": "7,3",
+  "authorizes": "3,3",
+  "governs": "9,3,2,3",
+  "validates": "6,2,2,2",
 };
+
+// Extra colors for any unknown relationship types
+const EXTRA_COLORS = ["#c084fc", "#22d3ee", "#f472b6", "#a3e635", "#e879f9", "#2dd4bf"];
 
 export default function OntologyGraph({
   nodes = [],
@@ -36,6 +51,24 @@ export default function OntologyGraph({
 }) {
   const svgRef = useRef(null);
   const simRef = useRef(null);
+
+  // Derive relationship types from actual edge data
+  const { relColors, relDash, activeRelTypes } = useMemo(() => {
+    const types = [...new Set(edges.map((e) => e.relationshipType))];
+    const colors = { ...BASE_REL_COLORS };
+    const dash = { ...BASE_REL_DASH };
+    let extraIdx = 0;
+    for (const t of types) {
+      if (!colors[t]) {
+        colors[t] = EXTRA_COLORS[extraIdx % EXTRA_COLORS.length];
+        extraIdx++;
+      }
+      if (!dash[t]) {
+        dash[t] = `${4 + extraIdx},${2 + extraIdx}`;
+      }
+    }
+    return { relColors: colors, relDash: dash, activeRelTypes: types };
+  }, [edges]);
 
   const render = useCallback(() => {
     if (!svgRef.current || nodes.length === 0) return;
@@ -49,7 +82,7 @@ export default function OntologyGraph({
 
     // Defs — arrowheads per relationship type
     const defs = svg.append("defs");
-    Object.entries(REL_COLORS).forEach(([type, color]) => {
+    Object.entries(relColors).forEach(([type, color]) => {
       defs
         .append("marker")
         .attr("id", `oa-${type.replace(/[^a-zA-Z]/g, "")}`)
@@ -110,9 +143,9 @@ export default function OntologyGraph({
       .selectAll("line")
       .data(linkData)
       .join("line")
-      .attr("stroke", (d) => REL_COLORS[d.relationshipType] || "#555")
+      .attr("stroke", (d) => relColors[d.relationshipType] || "#555")
       .attr("stroke-width", (d) => d.relationshipType === "parent-child" ? 2 : 1.5)
-      .attr("stroke-dasharray", (d) => REL_DASH[d.relationshipType] || "")
+      .attr("stroke-dasharray", (d) => relDash[d.relationshipType] || "")
       .attr("marker-end", (d) => `url(#oa-${d.relationshipType.replace(/[^a-zA-Z]/g, "")})`);
 
     // Link labels
@@ -188,7 +221,7 @@ export default function OntologyGraph({
           d.fy = null;
         });
     }
-  }, [nodes, edges, selectedNodeId, width, height, onNodeClick]);
+  }, [nodes, edges, selectedNodeId, width, height, onNodeClick, relColors, relDash]);
 
   useEffect(() => {
     render();
@@ -206,7 +239,7 @@ export default function OntologyGraph({
       />
 
       {/* Legend */}
-      <div className="absolute top-2 right-2 bg-gray-800/90 rounded p-2 text-xs space-y-1">
+      <div className="absolute top-2 right-2 bg-gray-800/90 rounded p-2 text-xs space-y-1 max-h-[90%] overflow-y-auto">
         <div className="text-gray-400 font-semibold mb-1">Node Types</div>
         {Object.entries(TYPE_COLORS).map(([type, color]) => (
           <div key={type} className="flex items-center gap-1.5">
@@ -215,16 +248,16 @@ export default function OntologyGraph({
           </div>
         ))}
         <div className="text-gray-400 font-semibold mt-2 mb-1">Relationships</div>
-        {Object.entries(REL_COLORS)
-          .filter(([t]) => t !== "parent-child")
-          .map(([type, color]) => (
+        {activeRelTypes
+          .filter((t) => t !== "parent-child")
+          .map((type) => (
             <div key={type} className="flex items-center gap-1.5">
               <svg width="20" height="6">
                 <line
                   x1="0" y1="3" x2="20" y2="3"
-                  stroke={color}
+                  stroke={relColors[type]}
                   strokeWidth="2"
-                  strokeDasharray={REL_DASH[type]}
+                  strokeDasharray={relDash[type]}
                 />
               </svg>
               <span className="text-gray-300">{type}</span>

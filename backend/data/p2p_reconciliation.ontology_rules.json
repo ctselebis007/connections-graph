@@ -1,0 +1,222 @@
+[{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f34f"
+  },
+  "name": "invoice_references_po",
+  "cardinality": "many-to-one",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.772Z"
+  },
+  "description": "Invoice references a Purchase Order via PO number in notes",
+  "from_collection": "invoices",
+  "link_field_from": "po_reference",
+  "link_field_to": "po_number",
+  "relationship_type": "references",
+  "rule_type": "relationship",
+  "to_collection": "purchase_orders"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f350"
+  },
+  "name": "gl_records_invoice",
+  "cardinality": "many-to-one",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.795Z"
+  },
+  "description": "GL journal entry records an Invoice via reference field",
+  "from_collection": "general_ledger",
+  "link_field_from": "entries.reference",
+  "link_field_to": "invoice_number",
+  "relationship_type": "records",
+  "rule_type": "relationship",
+  "to_collection": "invoices"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f351"
+  },
+  "name": "po_authorizes_vendor_spend",
+  "cardinality": "one-to-one",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.818Z"
+  },
+  "description": "PO authorizes vendor to invoice for specified items",
+  "from_collection": "purchase_orders",
+  "link_field_from": "vendor.name",
+  "link_field_to": "vendor.name",
+  "relationship_type": "authorizes",
+  "rule_type": "relationship",
+  "to_collection": "invoices"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f352"
+  },
+  "name": "policy_governs_gl",
+  "cardinality": "one-to-many",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.841Z"
+  },
+  "description": "Policy governs GL entries for the same company",
+  "from_collection": "policies",
+  "link_field_from": "company_name",
+  "link_field_to": "company_name",
+  "relationship_type": "governs",
+  "rule_type": "relationship",
+  "to_collection": "general_ledger"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f353"
+  },
+  "name": "PO-Invoice Amount Match",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.866Z"
+  },
+  "description": "PO subtotal must equal Invoice subtotal (computed from qty × rate)",
+  "fields": {
+    "po_field": "totals.subtotal",
+    "invoice_field": "totals.subtotal"
+  },
+  "rule_id": "R001",
+  "rule_type": "validation",
+  "severity": "critical",
+  "tolerance": 0.01,
+  "validation_type": "amount_match"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f354"
+  },
+  "name": "Invoice-GL Amount Match",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.890Z"
+  },
+  "description": "Invoice total (subtotal + tax) must equal GL debit amount",
+  "fields": {
+    "invoice_field": "totals.computed_total",
+    "gl_field": "entries.debit"
+  },
+  "rule_id": "R002",
+  "rule_type": "validation",
+  "severity": "critical",
+  "tolerance": 0.01,
+  "validation_type": "amount_match"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f355"
+  },
+  "name": "PO-Invoice Line Items Match",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.914Z"
+  },
+  "description": "PO line items must match Invoice line items (description, qty, rate)",
+  "fields": {
+    "po_field": "line_items",
+    "invoice_field": "line_items"
+  },
+  "rule_id": "R003",
+  "rule_type": "validation",
+  "severity": "critical",
+  "tolerance": null,
+  "validation_type": "item_match"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f356"
+  },
+  "name": "Vendor Name Consistency",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.937Z"
+  },
+  "description": "Vendor name must be consistent across PO, Invoice, and GL",
+  "fields": {
+    "po_field": "vendor.name",
+    "invoice_field": "vendor.name",
+    "gl_field": "entries.vendor_name"
+  },
+  "rule_id": "R004",
+  "rule_type": "validation",
+  "severity": "warning",
+  "tolerance": null,
+  "validation_type": "vendor_match"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78c33b37b1e8a82f357"
+  },
+  "name": "Date Sequencing",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.960Z"
+  },
+  "description": "PO date must precede Invoice date, which must precede GL date",
+  "fields": {
+    "po_field": "po_date",
+    "invoice_field": "issue_date",
+    "gl_field": "entries.date"
+  },
+  "rule_id": "R005",
+  "rule_type": "validation",
+  "severity": "warning",
+  "tolerance": null,
+  "validation_type": "date_sequence"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78d33b37b1e8a82f358"
+  },
+  "name": "Payment Terms Consistency",
+  "created_at": {
+    "$date": "2026-05-19T21:35:08.982Z"
+  },
+  "description": "Payment terms should be consistent between PO and Invoice",
+  "fields": {
+    "po_field": "payment_terms",
+    "invoice_field": "payment_terms"
+  },
+  "rule_id": "R006",
+  "rule_type": "validation",
+  "severity": "info",
+  "tolerance": null,
+  "validation_type": "terms_consistency"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78d33b37b1e8a82f359"
+  },
+  "name": "Policy Threshold Compliance",
+  "created_at": {
+    "$date": "2026-05-19T21:35:09.005Z"
+  },
+  "description": "Transaction amount must comply with policy approval threshold",
+  "fields": {
+    "policy_field": "approval_threshold",
+    "invoice_field": "totals.computed_total"
+  },
+  "rule_id": "R007",
+  "rule_type": "validation",
+  "severity": "critical",
+  "tolerance": null,
+  "validation_type": "threshold_compliance"
+},
+{
+  "_id": {
+    "$oid": "6a0cd78d33b37b1e8a82f35a"
+  },
+  "name": "Tax Amount Consistency",
+  "created_at": {
+    "$date": "2026-05-19T21:35:09.028Z"
+  },
+  "description": "Tax amount must be consistent between PO and Invoice",
+  "fields": {
+    "po_field": "totals.tax_amount",
+    "invoice_field": "totals.tax_amount"
+  },
+  "rule_id": "R008",
+  "rule_type": "validation",
+  "severity": "warning",
+  "tolerance": 0.01,
+  "validation_type": "tax_consistency"
+}]

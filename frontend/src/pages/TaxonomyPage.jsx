@@ -16,34 +16,57 @@ export default function TaxonomyPage() {
   const [logs, setLogs] = useState([]);
   const [viewMode, setViewMode] = useState("tree"); // "tree" | "graph"
   const [ontology, setOntology] = useState({ nodes: [], edges: [] });
+  const [taxonomySets, setTaxonomySets] = useState([]);
+  const [activeTaxonomySet, setActiveTaxonomySet] = useState(null);
 
   const log = (msg) => setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()} — ${msg}`]);
 
+  // Load available taxonomy sets on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.taxonomySets();
+        const sets = data.sets || [];
+        setTaxonomySets(sets);
+        if (sets.length > 0 && !activeTaxonomySet) {
+          setActiveTaxonomySet(sets[0]);
+        }
+      } catch (err) {
+        setError(err.message);
+      }
+    })();
+  }, []);
+
   const loadTree = useCallback(async () => {
     try {
-      const data = await api.taxonomyTree();
+      const data = await api.taxonomyTree(activeTaxonomySet);
       setTree(data.tree || []);
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [activeTaxonomySet]);
 
   const loadOntologyGraph = useCallback(async () => {
     try {
-      const data = await api.ontologyGraph();
+      const data = await api.ontologyGraph(activeTaxonomySet);
       setOntology({ nodes: data.nodes || [], edges: data.edges || [] });
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [activeTaxonomySet]);
 
   useEffect(() => {
-    loadTree();
-  }, [loadTree]);
+    if (activeTaxonomySet) {
+      loadTree();
+      setSelectedNode(null);
+      setNodeDetail(null);
+      setDocuments([]);
+    }
+  }, [activeTaxonomySet, loadTree]);
 
   useEffect(() => {
-    if (viewMode === "graph") loadOntologyGraph();
-  }, [viewMode, loadOntologyGraph]);
+    if (viewMode === "graph" && activeTaxonomySet) loadOntologyGraph();
+  }, [viewMode, activeTaxonomySet, loadOntologyGraph]);
 
   const handleNodeSelect = useCallback(async (nodeOrId) => {
     const id = typeof nodeOrId === "string" ? nodeOrId : nodeOrId._id;
@@ -63,7 +86,7 @@ export default function TaxonomyPage() {
     setLoading(true);
     setError("");
     try {
-      await api.taxonomyCreate(formData);
+      await api.taxonomyCreate({ ...formData, taxonomySet: activeTaxonomySet });
       log(`Created concept '${formData.label}' (${formData._id})`);
       setShowCreateForm(false);
       await loadTree();
@@ -168,6 +191,19 @@ export default function TaxonomyPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Taxonomy & Ontology</h1>
         <div className="flex items-center gap-3">
+          {/* Taxonomy Set selector */}
+          <select
+            value={activeTaxonomySet || ""}
+            onChange={(e) => setActiveTaxonomySet(e.target.value)}
+            className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+          >
+            {taxonomySets.map((s) => (
+              <option key={s} value={s}>
+                {s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </option>
+            ))}
+          </select>
+
           {/* View toggle */}
           <div className="flex bg-gray-800 rounded overflow-hidden text-sm">
             <button

@@ -54,14 +54,16 @@ export async function createIndexes() {
   await taxNodes.createIndex({ level: 1 }, { name: "idx_level" });
   await taxNodes.createIndex({ path: 1 }, { name: "idx_path" });
   await taxNodes.createIndex({ label: 1 }, { name: "idx_label" });
-  log.push("Created 4 indexes on 'taxonomy_nodes'");
+  await taxNodes.createIndex({ taxonomySet: 1 }, { name: "idx_taxonomySet" });
+  log.push("Created 5 indexes on 'taxonomy_nodes'");
 
   // --- taxonomy_edges ---
   const taxEdges = db.collection("taxonomy_edges");
   await taxEdges.createIndex({ sourceID: 1, targetID: 1 }, { name: "idx_source_target" });
   await taxEdges.createIndex({ targetID: 1 }, { name: "idx_targetID" });
   await taxEdges.createIndex({ relationshipType: 1 }, { name: "idx_relationshipType" });
-  log.push("Created 3 indexes on 'taxonomy_edges'");
+  await taxEdges.createIndex({ taxonomySet: 1 }, { name: "idx_taxonomySet" });
+  log.push("Created 4 indexes on 'taxonomy_edges'");
 
   return { success: true, log };
 }

@@ -577,6 +577,7 @@ function generateTaxonomy() {
         type: item.type || "concept",
         level,
         path,
+        taxonomySet: "audit",
         properties: item.properties || {},
         metadata: {
           source: "seed",
@@ -590,6 +591,7 @@ function generateTaxonomy() {
           sourceID: parentId,
           targetID: item._id,
           relationshipType: "parent-child",
+          taxonomySet: "audit",
           metadata: { createdAt: new Date() },
         });
       }
@@ -608,6 +610,7 @@ function generateTaxonomy() {
       sourceID,
       targetID,
       relationshipType,
+      taxonomySet: "audit",
       metadata: { createdAt: new Date() },
     });
   }

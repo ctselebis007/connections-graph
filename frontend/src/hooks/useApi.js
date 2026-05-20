@@ -37,8 +37,9 @@ export const api = {
   agent: (name, body) => request(`/agents/${name}`, { method: "POST", body }),
 
   // Taxonomy
-  taxonomyTree: () => request("/taxonomy/tree"),
-  taxonomyNodes: () => request("/taxonomy/nodes"),
+  taxonomySets: () => request("/taxonomy/sets"),
+  taxonomyTree: (set) => request(`/taxonomy/tree${set ? `?set=${encodeURIComponent(set)}` : ""}`),
+  taxonomyNodes: (set) => request(`/taxonomy/nodes${set ? `?set=${encodeURIComponent(set)}` : ""}`),
   taxonomyNode: (id) => request(`/taxonomy/nodes/${id}`),
   taxonomyCreate: (body) => request("/taxonomy/nodes", { method: "POST", body }),
   taxonomyUpdate: (id, body) => request(`/taxonomy/nodes/${id}`, { method: "PUT", body }),
@@ -50,7 +51,7 @@ export const api = {
   taxonomyUntag: (body) => request("/taxonomy/untag", { method: "POST", body }),
 
   // Ontology
-  ontologyGraph: () => request("/taxonomy/ontology/graph"),
+  ontologyGraph: (set) => request(`/taxonomy/ontology/graph${set ? `?set=${encodeURIComponent(set)}` : ""}`),
   ontologyRelationships: (id) => request(`/taxonomy/nodes/${id}/relationships`),
   ontologyCreateRelationship: (body) => request("/taxonomy/relationships", { method: "POST", body }),
   ontologyDeleteRelationship: (body) => request("/taxonomy/relationships", { method: "DELETE", body }),

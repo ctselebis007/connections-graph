@@ -21,14 +21,26 @@ import {
   relationshipSuggester,
   exportSKOS,
   importSKOS,
+  getTaxonomySets,
 } from "../services/taxonomy.js";
 
 const router = Router();
 
-/* GET /api/taxonomy/tree — full nested tree */
-router.get("/tree", async (_req, res) => {
+/* GET /api/taxonomy/sets — list available taxonomy sets */
+router.get("/sets", async (_req, res) => {
   try {
-    const tree = await getTree();
+    const sets = await getTaxonomySets();
+    res.json({ sets });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* GET /api/taxonomy/tree — full nested tree */
+router.get("/tree", async (req, res) => {
+  try {
+    const taxonomySet = req.query.set || null;
+    const tree = await getTree(taxonomySet);
     res.json({ tree });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -36,9 +48,10 @@ router.get("/tree", async (_req, res) => {
 });
 
 /* GET /api/taxonomy/nodes — flat list */
-router.get("/nodes", async (_req, res) => {
+router.get("/nodes", async (req, res) => {
   try {
-    const nodes = await getAllNodes();
+    const taxonomySet = req.query.set || null;
+    const nodes = await getAllNodes(taxonomySet);
     res.json({ nodes });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -59,11 +72,11 @@ router.get("/nodes/:id", async (req, res) => {
 /* POST /api/taxonomy/nodes — create node */
 router.post("/nodes", async (req, res) => {
   try {
-    const { _id, label, description, type, parentId, properties } = req.body;
+    const { _id, label, description, type, parentId, properties, taxonomySet } = req.body;
     if (!_id || !label) {
       return res.status(400).json({ error: "_id and label are required" });
     }
-    const node = await createNode({ _id, label, description, type, parentId, properties });
+    const node = await createNode({ _id, label, description, type, parentId, properties, taxonomySet });
     res.status(201).json(node);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,9 +170,10 @@ router.post("/untag", async (req, res) => {
 /* ------------------------------------------------------------------ */
 
 /* GET /api/taxonomy/ontology/graph — full ontology (nodes + all edges) */
-router.get("/ontology/graph", async (_req, res) => {
+router.get("/ontology/graph", async (req, res) => {
   try {
-    const graph = await getOntologyGraph();
+    const taxonomySet = req.query.set || null;
+    const graph = await getOntologyGraph(taxonomySet);
     res.json(graph);
   } catch (err) {
     res.status(500).json({ error: err.message });

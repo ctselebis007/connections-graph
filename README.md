@@ -114,7 +114,7 @@ A dedicated **Taxonomy & Ontology** page provides full management of the concept
 - **SKOS JSON-LD export** — export the full taxonomy as W3C SKOS-compatible JSON-LD
 - **SKOS JSON-LD import** — import and merge external taxonomies with automatic level/path recalculation
 
-The taxonomy is seeded automatically with ~31 nodes covering the EY audit domain (Audit & Assurance, Tax, Advisory, Standards & Regulation, Technology) with 3–4 levels of depth, plus ~24 ontology relationships.
+The taxonomy is seeded automatically with ~31 nodes covering the audit domain (Audit & Assurance, Tax, Advisory, Standards & Regulation, Technology) with 3–4 levels of depth, plus ~24 ontology relationships.
 
 ### Agents
 

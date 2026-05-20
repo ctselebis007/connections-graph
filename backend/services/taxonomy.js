@@ -5,12 +5,23 @@ import { getDb } from "./mongo.js";
 /* ------------------------------------------------------------------ */
 
 /**
+ * Return the list of distinct taxonomy sets.
+ */
+export async function getTaxonomySets() {
+  const db = getDb();
+  const sets = await db.collection("taxonomy_nodes").distinct("taxonomySet");
+  return sets.filter(Boolean);
+}
+
+/**
  * Return the full taxonomy as a nested tree structure.
  */
-export async function getTree() {
+export async function getTree(taxonomySet) {
   const db = getDb();
-  const nodes = await db.collection("taxonomy_nodes").find().sort({ level: 1, label: 1 }).toArray();
-  const edges = await db.collection("taxonomy_edges").find({ relationshipType: "parent-child" }).toArray();
+  const filter = taxonomySet ? { taxonomySet } : {};
+  const edgeFilter = taxonomySet ? { relationshipType: "parent-child", taxonomySet } : { relationshipType: "parent-child" };
+  const nodes = await db.collection("taxonomy_nodes").find(filter).sort({ level: 1, label: 1 }).toArray();
+  const edges = await db.collection("taxonomy_edges").find(edgeFilter).toArray();
 
   // Build adjacency map: parentId -> children
   const childrenMap = new Map();
@@ -43,9 +54,10 @@ export async function getTree() {
 /**
  * Return flat list of all taxonomy nodes.
  */
-export async function getAllNodes() {
+export async function getAllNodes(taxonomySet) {
   const db = getDb();
-  return db.collection("taxonomy_nodes").find().sort({ level: 1, label: 1 }).toArray();
+  const filter = taxonomySet ? { taxonomySet } : {};
+  return db.collection("taxonomy_nodes").find(filter).sort({ level: 1, label: 1 }).toArray();
 }
 
 /**
@@ -154,7 +166,7 @@ export async function getDescendantsBFS(conceptId) {
 /**
  * Create a new taxonomy node and optionally link it to a parent.
  */
-export async function createNode({ _id, label, description, type, parentId, properties }) {
+export async function createNode({ _id, label, description, type, parentId, properties, taxonomySet }) {
   const db = getDb();
   const nodesColl = db.collection("taxonomy_nodes");
   const edgesColl = db.collection("taxonomy_edges");
@@ -162,11 +174,13 @@ export async function createNode({ _id, label, description, type, parentId, prop
   // Determine level and path
   let level = 0;
   let path = [_id];
+  let resolvedSet = taxonomySet;
   if (parentId) {
     const parent = await nodesColl.findOne({ _id: parentId });
     if (!parent) throw new Error(`Parent node '${parentId}' not found`);
     level = (parent.level || 0) + 1;
     path = [...(parent.path || [parent._id]), _id];
+    if (!resolvedSet) resolvedSet = parent.taxonomySet;
   }
 
   const node = {
@@ -176,6 +190,7 @@ export async function createNode({ _id, label, description, type, parentId, prop
     type: type || "concept",
     level,
     path,
+    taxonomySet: resolvedSet || null,
     properties: properties || {},
     metadata: {
       source: "manual",
@@ -191,6 +206,7 @@ export async function createNode({ _id, label, description, type, parentId, prop
       sourceID: parentId,
       targetID: _id,
       relationshipType: "parent-child",
+      taxonomySet: resolvedSet || null,
       metadata: { createdAt: new Date() },
     });
   }
@@ -420,6 +436,7 @@ export async function getDocumentsByConcept(conceptId) {
 
 const ONTOLOGY_RELATIONSHIP_TYPES = [
   "parent-child", "is-a", "part-of", "applies-to", "supersedes", "governed-by",
+  "references", "records", "authorizes", "governs", "validates",
 ];
 
 /**
@@ -446,6 +463,7 @@ export async function createRelationship({ sourceID, targetID, relationshipType 
     sourceID,
     targetID,
     relationshipType,
+    taxonomySet: src.taxonomySet || null,
     metadata: { createdAt: new Date() },
   };
 
@@ -497,10 +515,11 @@ export async function getRelationships(conceptId) {
 /**
  * Get the full ontology as a graph (nodes + all edges including non-hierarchical).
  */
-export async function getOntologyGraph() {
+export async function getOntologyGraph(taxonomySet) {
   const db = getDb();
-  const nodes = await db.collection("taxonomy_nodes").find({}, { projection: { path: 0 } }).toArray();
-  const edges = await db.collection("taxonomy_edges").find().toArray();
+  const filter = taxonomySet ? { taxonomySet } : {};
+  const nodes = await db.collection("taxonomy_nodes").find(filter, { projection: { path: 0 } }).toArray();
+  const edges = await db.collection("taxonomy_edges").find(filter).toArray();
   return { nodes, edges };
 }
 
